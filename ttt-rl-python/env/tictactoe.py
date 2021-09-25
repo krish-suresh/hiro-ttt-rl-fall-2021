@@ -10,12 +10,25 @@ class TicTacToe(gym.Env):
     # 0 1 2
     # 3 4 5
     # 6 7 8
+    # 
+    # 0 = empty
+    # 1 = O
+    # 2 = X
+    # Possible Game
+    # 1 | 2 | 0
+    # ----------
+    # 0 | 1 | 2
+    # ----------
+    # 2 | 1 | 1
+    # O wins
+
+    
     def __init__(self):
         super(TicTacToe, self).__init__()
         self.action_space = spaces.Discrete(9)
-        self.observation_shape = (3, 3, 3)
+        self.observation_shape = (3, 3, 1)
         self.observation_space = spaces.Box(low = np.zeros(self.observation_shape), 
-                                            high = np.ones(self.observation_shape),
+                                            high = np.ones(self.observation_shape)*2,
                                             dtype = np.int8)
         self.state = None
     def step(self, action):
