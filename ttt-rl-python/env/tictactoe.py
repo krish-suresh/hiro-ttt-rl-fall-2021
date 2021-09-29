@@ -11,6 +11,7 @@ class TicTacToe(gym.Env):
     # 3 4 5
     # 6 7 8
     # 
+    # below are the values that represent our values for the matrix
     # 0 = empty
     # 1 = O
     # 2 = X
