@@ -43,7 +43,7 @@ num_actions = env.action_space.n  # 2
 num_hidden_units = 128
 
 model = ActorCritic(num_actions, num_hidden_units)
-
+model_old = ActorCritic(num_actions, num_hidden_units)
 # Wrap OpenAI Gym's `env.step` call as an operation in a TensorFlow function.
 # This would allow it to be included in a callable TensorFlow graph.
 
@@ -56,12 +56,13 @@ def env_step(action: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
           np.array(done, np.int32))
 
 
-def tf_env_step(action: tf.Tensor) -> List[tf.Tensor]:
-  return tf.numpy_function(env_step, [action], 
+def tf_env_step(action: tf.Tensor, player: uint8) -> List[tf.Tensor]:
+  return tf.numpy_function(env_step, [action, player], 
                            [tf.float32, tf.int32, tf.int32])
 def run_episode(
     initial_state: tf.Tensor,  
-    model: tf.keras.Model, 
+    model: tf.keras.Model,
+    model_old: tf.keras.Model,
     max_steps: int) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
   """Runs a single episode to collect training data."""
 
@@ -90,13 +91,22 @@ def run_episode(
     action_probs = action_probs.write(t, action_probs_t[0, action])
 
     # Apply action to the environment to get next state and reward
-    state, reward, done = tf_env_step(action)
+    state, reward, done = tf_env_step(action, 1)
     state.set_shape(initial_state_shape)
 
+    # Input new state to the old model 
+    action_logits_t, value = model_old(state)
+    action = tf.random.categorical(action_logits_t, 1)[0, 0]
+    action_probs_t = tf.nn.softmax(action_logits_t)
+    values = values.write(t, tf.squeeze(value))
+    action_probs = action_probs.write(t, action_probs_t[0, action])
+    # make opposing move
+    state, reward_old, done_old = tf_env_step(action, 2)
+    state.set_shape(initial_state_shape)
     # Store reward
     rewards = rewards.write(t, reward)
 
-    if tf.cast(done, tf.bool):
+    if tf.cast(done, tf.bool) or tf.cast(done_old, tf.bool):
       break
 
   action_probs = action_probs.stack()
@@ -187,7 +197,7 @@ def train_step(
 
 min_episodes_criterion = 100
 max_episodes = 1000
-max_steps_per_episode = 1000
+max_steps_per_episode = 9
 
 # Cartpole-v0 is considered solved if average reward is >= 195 over 100 
 # consecutive trials
