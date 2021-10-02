@@ -51,6 +51,15 @@ class TicTacToe(gym.Env):
             done = True
             reward = -1
         return self.state, reward, done
+    def invert(self):
+        inverted = tf.Variable(tf.reshape(self.state, [1,9]))
+        for i in range(0, 9):
+            if inverted[0, i] == 1:
+                inverted[0, i].assign(2)
+            elif inverted[0, i] == 2:
+                inverted[0, i].assign(1)
+        inverted = tf.reshape(inverted, [3, 3])
+        return inverted
     def reset(self):
         self.state = tf.Variable(tf.zeros([3, 3], tf.int8))
         
