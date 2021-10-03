@@ -1,10 +1,8 @@
 import math
-import gym
-from gym import spaces, logger
-from gym.utils import seeding
+
 import numpy as np
 import tensorflow as tf
-class TicTacToe(gym.Env):
+class TicTacToe():
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 50}
     # Board Indices
     # 0 1 2
@@ -23,33 +21,33 @@ class TicTacToe(gym.Env):
     # 2 | 1 | 1
     # O wins
 
-    
+    tf.random.set_seed(42)
+
     def __init__(self):
         super(TicTacToe, self).__init__()
-        self.action_space = spaces.Discrete(9)
-        self.observation_shape = (3, 3)
-        self.observation_space = spaces.Box(low = np.zeros(self.observation_shape), 
-                                            high = np.ones(self.observation_shape)*2,
-                                            dtype = np.int8)
         self.state = None
     def step(self, action, player):
         if self.is_valid_move(action):
             self.apply_move(action, player)
             if self.is_won():
-                reward = 1
+                reward = 15
+                print(tf.reshape(self.state, [3,3]))
                 done = True
             elif self.is_lost():
-                reward = -1
+                reward = -5
+                print(tf.reshape(self.state, [3,3]))
                 done = True
             elif self.is_done():
-                reward = 0.5
+                reward = 20
+                print("Tied")
                 done = True
             else:
-                reward = 0
+                reward = 1
                 done = False
         else:
             done = True
             reward = -1
+        # print(tf.reshape(self.state, [3,3]))
         return self.state, reward, done
     def invert(self):
         inverted = tf.Variable(tf.reshape(self.state, [1,9]))
@@ -58,10 +56,9 @@ class TicTacToe(gym.Env):
                 inverted[0, i].assign(2)
             elif inverted[0, i] == 2:
                 inverted[0, i].assign(1)
-        inverted = tf.reshape(inverted, [3, 3])
-        return inverted
+        self.state = tf.reshape(inverted, [1, 9])
     def reset(self):
-        self.state = tf.Variable(tf.zeros([3, 3], tf.int8))
+        self.state = tf.Variable(tf.zeros([1, 9], tf.int8))
         
         return self.state
     def render(self, mode='human'):
@@ -80,41 +77,43 @@ class TicTacToe(gym.Env):
         return self.state
     def is_won(self):
         self.state = tf.Variable(tf.reshape(self.state,[1,9]))
-        if (self.state[0, 0] == self.state[0, 1] == self.state[0, 2] == 1):
+        checkVal = 1
+        if (self.state[0, 0] == checkVal and  self.state[0, 1] == checkVal and self.state[0, 2] == checkVal):
             return True
-        if (self.state[0, 3] == self.state[0, 4] == self.state[0, 5] == 1):
+        if (self.state[0, 3] == checkVal and self.state[0, 4] == checkVal and self.state[0, 5] == checkVal):
             return True
-        if (self.state[0, 6] == self.state[0, 7] == self.state[0, 8] == 1):
+        if (self.state[0, 6] == checkVal and self.state[0, 7] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 0] == self.state[0, 3] == self.state[0, 6] == 1):
+        if (self.state[0, 0] == checkVal and self.state[0, 3] == checkVal and self.state[0, 6] == checkVal):
             return True
-        if (self.state[0, 1] == self.state[0, 4] == self.state[0, 7] == 1):
+        if (self.state[0, 1] == checkVal and self.state[0, 4] == checkVal and self.state[0, 7] == checkVal):
             return True
-        if (self.state[0, 2] == self.state[0, 5] == self.state[0, 8] == 1):
+        if (self.state[0, 2] == checkVal and self.state[0, 5] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 0] == self.state[0, 4] == self.state[0, 8] == 1):
+        if (self.state[0, 0] == checkVal and self.state[0, 4] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 2] == self.state[0, 4] == self.state[0, 6] == 1):
+        if (self.state[0, 2] == checkVal and self.state[0, 4] == checkVal and self.state[0, 6] == checkVal):
             return True   
         else:     
             return False
     def is_lost(self):
         self.state = tf.Variable(tf.reshape(self.state,[1,9]))
-        if (self.state[0, 0] == self.state[0, 1] == self.state[0, 2] == 2):
+        checkVal = -1
+        if (self.state[0, 0] == checkVal and  self.state[0, 1] == checkVal and self.state[0, 2] == checkVal):
             return True
-        if (self.state[0, 3] == self.state[0, 4] == self.state[0, 5] == 2):
+        if (self.state[0, 3] == checkVal and self.state[0, 4] == checkVal and self.state[0, 5] == checkVal):
             return True
-        if (self.state[0, 6] == self.state[0, 7] == self.state[0, 8] == 2):
+        if (self.state[0, 6] == checkVal and self.state[0, 7] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 0] == self.state[0, 3] == self.state[0, 6] == 2):
+        if (self.state[0, 0] == checkVal and self.state[0, 3] == checkVal and self.state[0, 6] == checkVal):
             return True
-        if (self.state[0, 1] == self.state[0, 4] == self.state[0, 7] == 2):
+        if (self.state[0, 1] == checkVal and self.state[0, 4] == checkVal and self.state[0, 7] == checkVal):
             return True
-        if (self.state[0, 2] == self.state[0, 5] == self.state[0, 8] == 2):
+        if (self.state[0, 2] == checkVal and self.state[0, 5] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 0] == self.state[0, 4] == self.state[0, 8] == 2):
+        if (self.state[0, 0] == checkVal and self.state[0, 4] == checkVal and self.state[0, 8] == checkVal):
             return True
-        if (self.state[0, 2] == self.state[0, 4] == self.state[0, 6] == 2):
+        if (self.state[0, 2] == checkVal and self.state[0, 4] == checkVal and self.state[0, 6] == checkVal):
             return True   
         else:     
             return False

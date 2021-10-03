@@ -4,22 +4,16 @@ import numpy as np
 import statistics
 import tensorflow as tf
 import tqdm
-
+import random
 from matplotlib import pyplot as plt
 from tensorflow.keras import layers
 from typing import Any, List, Sequence, Tuple
-
+from env.tictactoe import TicTacToe
 
 # Create the environment
-env = gym.make("CartPole-v0")
+env = TicTacToe()
+tf.config.run_functions_eagerly(True)
 
-# Set seed for experiment reproducibility
-seed = 42
-env.seed(seed)
-tf.random.set_seed(seed)
-np.random.seed(seed)
-
-# Small epsilon value for stabilizing division operations
 eps = np.finfo(np.float32).eps.item()
 class ActorCritic(tf.keras.Model):
   """Combined actor-critic network."""
@@ -39,30 +33,15 @@ class ActorCritic(tf.keras.Model):
     x = self.common(inputs)
     return self.actor(x), self.critic(x)
 
-num_actions = env.action_space.n  # 2
+num_actions = 9  # 2
 num_hidden_units = 128
 
 model = ActorCritic(num_actions, num_hidden_units)
-model_old = ActorCritic(num_actions, num_hidden_units)
-# Wrap OpenAI Gym's `env.step` call as an operation in a TensorFlow function.
-# This would allow it to be included in a callable TensorFlow graph.
+model.load_weights('./checkpoints/my_checkpoint')
 
-def env_step(action: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-  """Returns state, reward and done flag given an action."""
-
-  state, reward, done, _ = env.step(action)
-  return (state.astype(np.float32), 
-          np.array(reward, np.int32), 
-          np.array(done, np.int32))
-
-
-def tf_env_step(action: tf.Tensor, player) -> List[tf.Tensor]:
-  return tf.numpy_function(env_step, [action, player], 
-                           [tf.float32, tf.int32, tf.int32])
 def run_episode(
     initial_state: tf.Tensor,  
     model: tf.keras.Model,
-    model_old: tf.keras.Model,
     max_steps: int) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
   """Runs a single episode to collect training data."""
 
@@ -72,14 +51,13 @@ def run_episode(
 
   initial_state_shape = initial_state.shape
   state = initial_state
-
   for t in tf.range(max_steps):
     # Convert state into a batched tensor (batch size = 1)
-    state = tf.expand_dims(state, 0)
+    # state = tf.expand_dims(state, 0)
 
     # Run the model and to get action probabilities and critic value
     action_logits_t, value = model(state)
-    print(action_logits_t)
+
     # Sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_t, 1)[0, 0]
     action_probs_t = tf.nn.softmax(action_logits_t)
@@ -91,22 +69,11 @@ def run_episode(
     action_probs = action_probs.write(t, action_probs_t[0, action])
 
     # Apply action to the environment to get next state and reward
-    state, reward, done = tf_env_step(action, 1)
+    state, reward, done = env.step(action, 1)
     state.set_shape(initial_state_shape)
-
-    # Input new state to the old model 
-    action_logits_t, value = model_old(state)
-    action = tf.random.categorical(action_logits_t, 1)[0, 0]
-    action_probs_t = tf.nn.softmax(action_logits_t)
-    values = values.write(t, tf.squeeze(value))
-    action_probs = action_probs.write(t, action_probs_t[0, action])
-    # make opposing move
-    state, reward_old, done_old = tf_env_step(action, 2)
-    state.set_shape(initial_state_shape)
-    # Store reward
     rewards = rewards.write(t, reward)
-
-    if tf.cast(done, tf.bool) or tf.cast(done_old, tf.bool):
+    env.invert()
+    if tf.cast(done, tf.bool):
       break
 
   action_probs = action_probs.stack()
@@ -114,6 +81,12 @@ def run_episode(
   rewards = rewards.stack()
 
   return action_probs, values, rewards
+initial_state = tf.constant(env.reset(), dtype=tf.int8)
+# action_probs, values, rewards = run_episode(initial_state=initial_state, model=model, model_old=model_old, max_steps=9)
+# print(action_probs)
+# print(values)
+# print(rewards)
+
 def get_expected_return(
     rewards: tf.Tensor, 
     gamma: float, 
@@ -174,7 +147,6 @@ def train_step(
     # Run the model for one episode to collect training data
     action_probs, values, rewards = run_episode(
         initial_state, model, max_steps_per_episode) 
-
     # Calculate expected returns
     returns = get_expected_return(rewards, gamma)
 
@@ -194,28 +166,24 @@ def train_step(
   episode_reward = tf.math.reduce_sum(rewards)
 
   return episode_reward
-
+gamma = 0.99
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
 min_episodes_criterion = 100
-max_episodes = 1000
+max_episodes = 10000
 max_steps_per_episode = 9
 
 # Cartpole-v0 is considered solved if average reward is >= 195 over 100 
 # consecutive trials
-reward_threshold = 195
+reward_threshold = 15
 running_reward = 0
+# print(train_step(initial_state, model, model_old, optimizer, gamma, 9))
 
-# Discount factor for future rewards
-gamma = 0.99
-initial_state = tf.constant(env.reset(), dtype=tf.float32)
-
-# Keep last episodes reward
 episodes_reward: collections.deque = collections.deque(maxlen=min_episodes_criterion)
 
 with tqdm.trange(max_episodes) as t:
   for i in t:
     initial_state = tf.constant(env.reset(), dtype=tf.float32)
-    episode_reward = int(train_step(
-        initial_state, model, optimizer, gamma, max_steps_per_episode))
+    episode_reward = int(train_step(initial_state, model, optimizer, gamma, 9))
 
     episodes_reward.append(episode_reward)
     running_reward = statistics.mean(episodes_reward)
@@ -223,56 +191,14 @@ with tqdm.trange(max_episodes) as t:
     t.set_description(f'Episode {i}')
     t.set_postfix(
         episode_reward=episode_reward, running_reward=running_reward)
-
+    if i % 1000 == 0:
+        model.save_weights('./checkpoints/my_checkpoint')
+        model.load_weights('./checkpoints/my_checkpoint')
     # Show average episode reward every 10 episodes
     if i % 10 == 0:
       pass # print(f'Episode {i}: average reward: {avg_reward}')
 
     if running_reward > reward_threshold and i >= min_episodes_criterion:  
         break
-
+model.save_weights('./checkpoints/my_checkpoint')
 print(f'\nSolved at episode {i}: average reward: {running_reward:.2f}!')
-
-# Render an episode and save as a GIF file
-
-from IPython import display as ipythondisplay
-from PIL import Image
-from pyvirtualdisplay import Display
-
-
-display = Display(visible=0, size=(400, 300))
-display.start()
-
-
-def render_episode(env: gym.Env, model: tf.keras.Model, max_steps: int): 
-  screen = env.render(mode='rgb_array')
-  im = Image.fromarray(screen)
-
-  images = [im]
-
-  state = tf.constant(env.reset(), dtype=tf.float32)
-  for i in range(1, max_steps + 1):
-    state = tf.expand_dims(state, 0)
-    action_probs, _ = model(state)
-    action = np.argmax(np.squeeze(action_probs))
-
-    state, _, done, _ = env.step(action)
-    state = tf.constant(state, dtype=tf.float32)
-
-    # Render screen every 10 steps
-    if i % 10 == 0:
-      screen = env.render(mode='rgb_array')
-      images.append(Image.fromarray(screen))
-
-    if done:
-      break
-
-  return images
-
-
-# Save GIF image
-images = render_episode(env, model, max_steps_per_episode)
-image_file = 'cartpole-v0.gif'
-# loop=0: loop forever, duration=1: play each frame for 1ms
-images[0].save(
-    image_file, save_all=True, append_images=images[1:], loop=0, duration=1)
