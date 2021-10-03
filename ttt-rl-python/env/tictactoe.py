@@ -45,10 +45,18 @@ class TicTacToe():
                 reward = 1
                 done = False
         else:
+            print("invalid")
             done = True
             reward = -1
         # print(tf.reshape(self.state, [3,3]))
         return self.state, reward, done
+    def validMoves(self):
+        state = tf.Variable(self.state)
+        ret = tf.Variable(tf.zeros([1, 9], tf.float32))
+        for i in range(0, 9):
+            if state[0,i] != 0:
+                ret[0, i].assign(-1000)
+        return ret
     def invert(self):
         inverted = tf.Variable(tf.reshape(self.state, [1,9]))
         for i in range(0, 9):

@@ -37,7 +37,7 @@ num_actions = 9  # 2
 num_hidden_units = 128
 
 model = ActorCritic(num_actions, num_hidden_units)
-model.load_weights('./checkpoints/my_checkpoint')
+# model.load_weights('./checkpoints/my_checkpoint')
 
 def run_episode(
     initial_state: tf.Tensor,  
@@ -57,7 +57,10 @@ def run_episode(
 
     # Run the model and to get action probabilities and critic value
     action_logits_t, value = model(state)
-
+    print(action_logits_t)
+    print(env.validMoves())
+    action_logits_t = tf.multiply(action_logits_t, env.validMoves())
+    print(action_logits_t)
     # Sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_t, 1)[0, 0]
     action_probs_t = tf.nn.softmax(action_logits_t)
@@ -79,7 +82,7 @@ def run_episode(
   action_probs = action_probs.stack()
   values = values.stack()
   rewards = rewards.stack()
-
+  quit()
   return action_probs, values, rewards
 initial_state = tf.constant(env.reset(), dtype=tf.int8)
 # action_probs, values, rewards = run_episode(initial_state=initial_state, model=model, model_old=model_old, max_steps=9)
