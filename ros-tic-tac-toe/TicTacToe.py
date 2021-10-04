@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-from math import pi
+from math import cos, pi, sin
 from tf.transformations import quaternion_from_euler
 from hiro_core.XamyabRobot import XamyabRobot, rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 import random
-
+import copy
 # roslaunch ur_gazebo xamyab.launch
 # roslaunch xamyab_moveit_config xamyab_moveit_planning_execution.launch
 
 class TicTacToe:
     def __init__(self):
-        self.robot = XamyabRobot(visualize_trajectory=True)
+        self.robot = XamyabRobot(visualize_trajectory=False)
         self.default_gripper_quaternion = Quaternion(*quaternion_from_euler(pi, 0, 0))
         self.board_pos = Pose(position=Point(*[0.6256, 0, 0.4]), orientation=self.default_gripper_quaternion)
         self.board_size = 0.15
@@ -33,6 +33,10 @@ class TicTacToe:
         self.move_to(Pose(position=point_goal, orientation=self.default_gripper_quaternion))
     def move_to(self, pose_goal):
         pose_goal.orientation = self.default_gripper_quaternion
+        self.robot.right_manipulator.set_pose_goal(pose_goal)
+        self.robot.right_manipulator.go(wait=True)
+        self.robot.right_manipulator.stop()
+        # Do move twice
         self.robot.right_manipulator.set_pose_goal(pose_goal)
         self.robot.right_manipulator.go(wait=True)
         self.robot.right_manipulator.stop()
@@ -103,25 +107,27 @@ class TicTacToe:
         bottom.append(Point(self.board_pos.position.x-self.board_size/6, self.board_pos.position.y-self.board_size/2, self.board_pos.position.z))
         return [left, right, top, bottom]
     def getDrawPosFromBoardPos(self, boardPos):
-        pose = Point()
-        pose.z = self.board_pos.position.z
+        point = Point()
+        point.z = self.board_pos.position.z
         if boardPos in [0, 1, 2]:
-            pose.y = self.board_pos.position.y+self.board_size/3
+            point.y = self.board_pos.position.y+self.board_size/3
         elif boardPos in [3, 4, 5]:
-            pose.y = self.board_pos.position.y
+            point.y = self.board_pos.position.y
         elif boardPos in [6, 7, 8]:
-            pose.y = self.board_pos.position.y-self.board_size/3
+            point.y = self.board_pos.position.y-self.board_size/3
         if boardPos in [0, 3, 6]:
-            pose.x = self.board_pos.position.x-self.board_size/3
+            point.x = self.board_pos.position.x-self.board_size/3
         elif boardPos in [1, 4, 7]:
-            pose.x = self.board_pos.position.x
+            point.x = self.board_pos.position.x
         elif boardPos in [2, 5, 8]:
-            pose.x = self.board_pos.position.x+self.board_size/3
-        return pose
-    def drawO(self, centerPose):
+            point.x = self.board_pos.position.x+self.board_size/3
+        return point
+    def drawO(self, centerPoint):
         # draw a circle of size self.shape_size
         waypoints = []
-        # TODO calculate circle waypoints
+        for ang in range(0, pi*2, 0.01):
+            point = Point(centerPoint.x + sin(ang)*self.shape_size/2, centerPoint.y - cos(ang)*self.shape_size/2, centerPoint.z)
+            waypoints.append(Pose(position=point, orientiation=self.board_pos.orientation))
         self.follow_path(waypoints)
         pass
     def drawX(self, centerPose):
