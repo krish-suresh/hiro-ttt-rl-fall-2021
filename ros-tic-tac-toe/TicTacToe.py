@@ -3,7 +3,7 @@ from math import pi
 from tf.transformations import quaternion_from_euler
 from hiro_core.XamyabRobot import XamyabRobot, rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
-
+import random
 
 # roslaunch ur_gazebo xamyab.launch
 # roslaunch xamyab_moveit_config xamyab_moveit_planning_execution.launch
@@ -30,19 +30,35 @@ class TicTacToe:
         self.robot.left_gripper.enable_fingers_collisions(object_name, True)
     
     def move_to(self, pose_goal):
-        pose_goal.position.z += 0.2
         pose_goal.orientation = self.default_gripper_quaternion
         self.robot.left_manipulator.set_pose_goal(pose_goal)
-    
+        self.robot.left_manipulator.go(wait=True)
+        self.robot.left_manipulator.stop()
+        self.robot.left_manipulator.clear_pose_targets()
+    def follow_path(self, waypoints):
+        (plan, fraction) = self.robot.left_manipulator.compute_cartesian_path(
+                                   waypoints,   # waypoints to follow
+                                   0.01,        # eef_step
+                                   0.0)         # jump_threshold
+        self.robot.left_manipulator.execute(plan, wait=True)
+    def test(self):
+        self.drawBoard()
+        self.drawMove(0, True)
+        self.drawMove(1, False)
+        self.drawMove(2, True)    
     def play(self):
-
         # Draw Board
+        self.drawBoard()
         # Randomize Starting player
+        isRobotStart = bool(random.getrandbits(1))
         # loop while game not done:
         #     game.state = robot.playMove(model(game.state), isX: True)     
         #     game.state = robot.playMove(userMove, isX: False)
         # output win/lose/tie
-        pass
+
+        # done = False
+        # while not done:
+        #     pass
     def drawBoard(self):
         boardLines = self.getBoardLines()
         for line in boardLines:
@@ -59,9 +75,16 @@ class TicTacToe:
         startPose = line[0]
         endPose = line[1]
         # move to startPose with elevated z
+        startPose.z += 0.1
+        self.move_to(startPose)
         # move to startPose
+        startPose.z -= 0.1
+        self.move_to(startPose)
         # path line to endPose
+        self.move_to(endPose)
         # move to endPose with elevated z
+        endPose.z += 0.1
+        self.move_to(endPose)
     def getBoardLines(self):
         left = []
         left[0] = Pose(self.board_pos.x-self.board_size/6, self.board_pos.y+self.board_size/2, self.board_pos.z)
@@ -95,6 +118,9 @@ class TicTacToe:
         return pose
     def drawO(self, centerPose):
         # draw a circle of size self.shape_size
+        waypoints = []
+        # TODO calculate circle waypoints
+        self.follow_path(waypoints)
         pass
     def drawX(self, centerPose):
         # get X lines from centerPose and boardSize
@@ -111,3 +137,4 @@ class TicTacToe:
         pass
 if __name__ == "__main__":
     tictactoe = TicTacToe()
+    tictactoe.test()
