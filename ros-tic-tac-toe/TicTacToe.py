@@ -5,6 +5,7 @@ from hiro_core.XamyabRobot import XamyabRobot, rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 import random
 import copy
+import numpy as np
 # roslaunch ur_gazebo xamyab.launch
 # roslaunch xamyab_moveit_config xamyab_moveit_planning_execution.launch
 
@@ -12,7 +13,7 @@ class TicTacToe:
     def __init__(self):
         self.robot = XamyabRobot(visualize_trajectory=False)
         self.default_gripper_quaternion = Quaternion(*quaternion_from_euler(pi, 0, 0))
-        self.board_pos = Pose(position=Point(*[0.6256, 0, 0.4]), orientation=self.default_gripper_quaternion)
+        self.board_pos = Pose(position=Point(*[0.7, -0.1, 0.4]), orientation=self.default_gripper_quaternion)
         self.board_size = 0.15
         self.shape_size = self.board_size/4
         self.robot.right_manipulator.home()
@@ -36,10 +37,6 @@ class TicTacToe:
         self.robot.right_manipulator.set_pose_goal(pose_goal)
         self.robot.right_manipulator.go(wait=True)
         self.robot.right_manipulator.stop()
-        # Do move twice
-        self.robot.right_manipulator.set_pose_goal(pose_goal)
-        self.robot.right_manipulator.go(wait=True)
-        self.robot.right_manipulator.stop()
         self.robot.right_manipulator.clear_pose_targets()
     def follow_path(self, waypoints):
         (plan, fraction) = self.robot.right_manipulator.compute_cartesian_path(
@@ -49,9 +46,11 @@ class TicTacToe:
         self.robot.right_manipulator.execute(plan, wait=True)
     def test(self):
         self.drawBoard()
-        self.drawMove(0, True)
-        self.drawMove(1, False)
-        self.drawMove(2, True)    
+        # self.drawO(self.board_pos.position)
+        for i in range(0,9):
+            self.drawMove(i, True)
+        # self.drawMove(1, False)
+        # self.drawMove(2, True)    
     def play(self):
         # Draw Board
         self.drawBoard()
@@ -74,10 +73,10 @@ class TicTacToe:
     def drawMove(self, pos, isX):
         drawPos = self.getDrawPosFromBoardPos(pos)
         if isX:
+            rospy.loginfo("Drawing X at Pos: " + str(pos))
             self.drawX(drawPos)
         else:
             self.drawO(drawPos)
-        pass
     def drawLine(self, line):
         startPose = line[0]
         endPose = line[1]
@@ -110,35 +109,41 @@ class TicTacToe:
         point = Point()
         point.z = self.board_pos.position.z
         if boardPos in [0, 1, 2]:
-            point.y = self.board_pos.position.y+self.board_size/3
-        elif boardPos in [3, 4, 5]:
-            point.y = self.board_pos.position.y
-        elif boardPos in [6, 7, 8]:
-            point.y = self.board_pos.position.y-self.board_size/3
-        if boardPos in [0, 3, 6]:
-            point.x = self.board_pos.position.x-self.board_size/3
-        elif boardPos in [1, 4, 7]:
-            point.x = self.board_pos.position.x
-        elif boardPos in [2, 5, 8]:
             point.x = self.board_pos.position.x+self.board_size/3
+        elif boardPos in [3, 4, 5]:
+            point.x = self.board_pos.position.x
+        elif boardPos in [6, 7, 8]:
+            point.x = self.board_pos.position.x-self.board_size/3
+        if boardPos in [0, 3, 6]:
+            point.y = self.board_pos.position.y+self.board_size/3
+        elif boardPos in [1, 4, 7]:
+            point.y = self.board_pos.position.y
+        elif boardPos in [2, 5, 8]:
+            point.y = self.board_pos.position.y-self.board_size/3
         return point
     def drawO(self, centerPoint):
         # draw a circle of size self.shape_size
+        centerPoint.z += 0.01
+        self.move_to_point(centerPoint)
+        steps = np.linspace(0, pi/8, pi*2 )
+        print(steps)
         waypoints = []
-        for ang in range(0, pi*2, 0.01):
+        waypoints.append(copy.deepcopy(self.robot.right_manipulator.get_current_pose().pose))
+        centerPoint.z -= 0.01
+        for ang in steps:
             point = Point(centerPoint.x + sin(ang)*self.shape_size/2, centerPoint.y - cos(ang)*self.shape_size/2, centerPoint.z)
-            waypoints.append(Pose(position=point, orientiation=self.board_pos.orientation))
+            waypoints.append(Pose(position=point, orientation=self.board_pos.orientation))
         self.follow_path(waypoints)
         pass
     def drawX(self, centerPose):
         # get X lines from centerPose and boardSize
-        centerOffset = self.shape_size
+        centerOffset = self.shape_size/2
         line0 = []
-        line0[0] = Point(centerPose.x-centerOffset, centerPose.y+centerOffset, self.board_pos.position.z)
-        line0[1] = Point(centerPose.x+centerOffset, centerPose.y-centerOffset, self.board_pos.position.z)
+        line0.append(Point(centerPose.x+centerOffset, centerPose.y+centerOffset, self.board_pos.position.z))
+        line0.append(Point(centerPose.x-centerOffset, centerPose.y-centerOffset, self.board_pos.position.z))
         line1 = []
-        line1[0] = Point(centerPose.x+centerOffset, centerPose.y+centerOffset, self.board_pos.position.z)
-        line1[1] = Point(centerPose.x-centerOffset, centerPose.y-centerOffset, self.board_pos.position.z)
+        line1.append(Point(centerPose.x+centerOffset, centerPose.y-centerOffset, self.board_pos.position.z))
+        line1.append(Point(centerPose.x-centerOffset, centerPose.y+centerOffset, self.board_pos.position.z))
         x_lines = [line0, line1]
         for line in x_lines:
             self.drawLine(line)
