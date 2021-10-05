@@ -6,6 +6,7 @@ from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 import random
 import copy
 import numpy as np
+from tictactoegameenv import TicTacToeGame
 # roslaunch ur_gazebo xamyab.launch
 # roslaunch xamyab_moveit_config xamyab_moveit_planning_execution.launch
 
@@ -60,10 +61,27 @@ class TicTacToe:
         #     game.state = robot.playMove(model(game.state), isX: True)     
         #     game.state = robot.playMove(userMove, isX: False)
         # output win/lose/tie
+        env = TicTacToeGame()
+        env.reset()
+        if isRobotStart:
+            pass
+        while True:
+            if env.getHumanMove(env.state):
+                break
+            if env.getRobotMove(env.state):
+                break
+        # Setting computer's choice
+        h_choice = 'X'
+        c_choice = 'O'
+        # Main loop of this game
+        while not env.complete():
+            if isRobotStart:
+                robotMove = env.ai_turn(c_choice, h_choice)
+                self.drawMove(robotMove, True)
+            env.human_turn(c_choice, h_choice)
+            robotMove = env.ai_turn(c_choice, h_choice)
+            self.drawMove(robotMove, True)
 
-        # done = False
-        # while not done:
-        #     pass
     def drawBoard(self):
         rospy.loginfo("Drawing Board")
         boardLines = self.getBoardLines()
@@ -150,4 +168,4 @@ class TicTacToe:
         pass
 if __name__ == "__main__":
     tictactoe = TicTacToe()
-    tictactoe.test()
+    tictactoe.play()
