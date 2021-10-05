@@ -17,8 +17,10 @@ class TicTacToe:
         self.board_pos = Pose(position=Point(*[0.7, -0.1, 0.4]), orientation=self.default_gripper_quaternion)
         self.board_size = 0.15
         self.shape_size = self.board_size/4
-        self.robot.right_manipulator.home()
-        self.robot.right_gripper.close()
+        self.resting_pos = copy.deepcopy(self.board_pos)
+        self.resting_pos.position.x -= self.board_size
+        # self.robot.right_manipulator.home()
+        # self.robot.right_gripper.close()
         self.move_to(self.board_pos)
     def reset(self):
         self.robot.left_gripper.open()
@@ -62,31 +64,33 @@ class TicTacToe:
         #     game.state = robot.playMove(userMove, isX: False)
         # output win/lose/tie
         env = TicTacToeGame()
-        env.reset()
-        if isRobotStart:
-            pass
-        while True:
-            if env.getHumanMove(env.state):
-                break
-            if env.getRobotMove(env.state):
-                break
-        # Setting computer's choice
         h_choice = 'X'
         c_choice = 'O'
         # Main loop of this game
-        while not env.complete():
-            if isRobotStart:
-                robotMove = env.ai_turn(c_choice, h_choice)
-                self.drawMove(robotMove, True)
+        if isRobotStart:
+            robotMove = env.ai_turn(c_choice, h_choice)
+            self.drawMove(robotMove, True)
+        while env.not_complete():
             env.human_turn(c_choice, h_choice)
             robotMove = env.ai_turn(c_choice, h_choice)
             self.drawMove(robotMove, True)
+
+        if env.wins(env.board, env.HUMAN):
+            env.render(env.board, c_choice, h_choice)
+            print('YOU WIN!')
+        elif env.wins(env.board, env.COMP):
+            env.render(env.board, c_choice, h_choice)
+            print('YOU LOSE!')
+        else:
+            env.render(env.board, c_choice, h_choice)
+            print('DRAW!')
 
     def drawBoard(self):
         rospy.loginfo("Drawing Board")
         boardLines = self.getBoardLines()
         for line in boardLines:
             self.drawLine(line)
+        self.move_to(self.resting_pos)
 
     def drawMove(self, pos, isX):
         drawPos = self.getDrawPosFromBoardPos(pos)
@@ -95,6 +99,7 @@ class TicTacToe:
             self.drawX(drawPos)
         else:
             self.drawO(drawPos)
+        self.move_to(self.resting_pos)
     def drawLine(self, line):
         startPose = line[0]
         endPose = line[1]

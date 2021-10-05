@@ -1,4 +1,3 @@
-from math import inf as infinity
 from random import choice
 import platform
 import time
@@ -40,7 +39,7 @@ class TicTacToeGame:
         return score
 
 
-    def wins(state, player):
+    def wins(self, state, player):
         """
         This function tests if a specific player wins. Possibilities:
         * Three rows    [X X X] or [O O O]
@@ -75,7 +74,7 @@ class TicTacToeGame:
         return self.wins(state, self.HUMAN) or self.wins(state, self.COMP)
 
 
-    def empty_cells(state):
+    def empty_cells(self,state):
         """
         Each empty cell will be added into cells' list
         :param state: the state of the current board
@@ -128,9 +127,9 @@ class TicTacToeGame:
         :return: a list with [the best row, best col, best score]
         """
         if player == self.COMP:
-            best = [-1, -1, -infinity]
+            best = [-1, -1, -99999999999]
         else:
-            best = [-1, -1, +infinity]
+            best = [-1, -1, +99999999999]
 
         if depth == 0 or self.game_over(state):
             score = self.evaluate(state)
@@ -164,25 +163,27 @@ class TicTacToeGame:
             system('clear')
 
 
-    def render(state, c_choice, h_choice):
+    def render(self, state, c_choice, h_choice):
         """
         Print the board on console
         :param state: current state of the board
         """
+        print(state[0])
+        print(state[1])
+        print(state[2])
+        # chars = {
+        #     -1: h_choice,
+        #     +1: c_choice,
+        #     0: ' '
+        # }
+        # str_line = '---------------'
 
-        chars = {
-            -1: h_choice,
-            +1: c_choice,
-            0: ' '
-        }
-        str_line = '---------------'
-
-        print('\n' + str_line)
-        for row in state:
-            for cell in row:
-                symbol = chars[cell]
-                print(f'| {symbol} |', end='')
-            print('\n' + str_line)
+        # print('\n' + str_line)
+        # for row in state:
+        #     for cell in row:
+        #         symbol = chars[cell]
+        #         print('| ' + str(symbol)+' |')
+        #     print('\n' + str_line)
 
 
     def ai_turn(self, c_choice, h_choice):
@@ -198,7 +199,7 @@ class TicTacToeGame:
             return
         robotPos = [[0,1,2],[3,4,5],[6,7,8]]
         # clean()
-        print(f'Computer turn [{c_choice}]')
+        # print(f'Computer turn [{c_choice}]')
         self.render(self.board, c_choice, h_choice)
 
         if depth == 9:
@@ -226,18 +227,18 @@ class TicTacToeGame:
         # Dictionary of valid moves
         move = -1
         moves = {
-            1: [0, 0], 2: [0, 1], 3: [0, 2],
-            4: [1, 0], 5: [1, 1], 6: [1, 2],
-            7: [2, 0], 8: [2, 1], 9: [2, 2],
+            0: [0, 0], 1: [0, 1], 2: [0, 2],
+            3: [1, 0], 4: [1, 1], 5: [1, 2],
+            6: [2, 0], 7: [2, 1], 8: [2, 2],
         }
 
         # clean()
-        print(f'Human turn [{h_choice}]')
+        # print(f'Human turn [{h_choice}]')
         self.render(self.board, c_choice, h_choice)
 
         while move < 1 or move > 9:
             try:
-                move = int(input('Use numpad (1..9): '))
+                move = int(input('Use numpad (0..8): '))
                 coord = moves[move]
                 can_move = self.set_move(coord[0], coord[1], self.HUMAN)
 
@@ -250,7 +251,7 @@ class TicTacToeGame:
             except (KeyError, ValueError):
                 print('Bad choice')
 
-    def complete(self):
+    def not_complete(self):
         return len(self.empty_cells(self.board)) > 0 and not self.game_over(self.board)
     # def main():
     #     """
@@ -299,19 +300,19 @@ class TicTacToeGame:
     #         ai_turn(c_choice, h_choice)
 
     #     # Game over message
-    #     if wins(board, HUMAN):
-    #         clean()
-    #         print(f'Human turn [{h_choice}]')
-    #         render(board, c_choice, h_choice)
-    #         print('YOU WIN!')
-    #     elif wins(board, COMP):
-    #         clean()
-    #         print(f'Computer turn [{c_choice}]')
-    #         render(board, c_choice, h_choice)
-    #         print('YOU LOSE!')
-    #     else:
-    #         clean()
-    #         render(board, c_choice, h_choice)
-    #         print('DRAW!')
+        # if wins(board, HUMAN):
+        #     clean()
+        #     print(f'Human turn [{h_choice}]')
+        #     render(board, c_choice, h_choice)
+        #     print('YOU WIN!')
+        # elif wins(board, COMP):
+        #     clean()
+        #     print(f'Computer turn [{c_choice}]')
+        #     render(board, c_choice, h_choice)
+        #     print('YOU LOSE!')
+        # else:
+        #     clean()
+        #     render(board, c_choice, h_choice)
+        #     print('DRAW!')
 
     #     exit()
