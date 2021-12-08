@@ -236,7 +236,7 @@ class TicTacToeGame:
         # print(f'Human turn [{h_choice}]')
         self.render(self.board, c_choice, h_choice)
 
-        while move < 1 or move > 9:
+        while move < 0 or move > 8:
             try:
                 move = int(input('Use numpad (0..8): '))
                 coord = moves[move]

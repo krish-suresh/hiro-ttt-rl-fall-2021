@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from math import cos, pi, sin
+from math import cos, pi, sin, radians
 from tf.transformations import quaternion_from_euler
 from hiro_core.XamyabRobot import XamyabRobot, rospy
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
@@ -13,14 +13,16 @@ from tictactoegameenv import TicTacToeGame
 class TicTacToe:
     def __init__(self):
         self.robot = XamyabRobot(visualize_trajectory=False)
-        self.default_gripper_quaternion = Quaternion(*quaternion_from_euler(pi, 0, 0))
-        self.board_pos = Pose(position=Point(*[0.7, -0.1, 0.4]), orientation=self.default_gripper_quaternion)
-        self.board_size = 0.15
+        self.default_gripper_quaternion = Quaternion(*quaternion_from_euler(pi, radians(-25), 0))
+        self.board_pos = Pose(position=Point(*[0.53, -0.2, 0.3-0.035]), orientation=self.default_gripper_quaternion)
+        # self.board_pos = self.robot.right_manipulator.get_current_pose().pose
+        self.board_size = 0.2
         self.shape_size = self.board_size/4
         self.resting_pos = copy.deepcopy(self.board_pos)
         self.resting_pos.position.x -= self.board_size
+        self.resting_pos.position.z += 0.05
         # self.robot.right_manipulator.home()
-        # self.robot.right_gripper.close()
+        self.robot.right_gripper.close()
         self.move_to(self.board_pos)
     def reset(self):
         self.robot.left_gripper.open()
@@ -48,10 +50,8 @@ class TicTacToe:
                                    0.0)         # jump_threshold
         self.robot.right_manipulator.execute(plan, wait=True)
     def test(self):
-        self.drawBoard()
-        # self.drawO(self.board_pos.position)
-        for i in range(0,9):
-            self.drawMove(i, True)
+        # self.drawBoard()
+        self.drawO(self.board_pos.position)
         # self.drawMove(1, False)
         # self.drawMove(2, True)    
     def play(self):
@@ -73,7 +73,8 @@ class TicTacToe:
         while env.not_complete():
             env.human_turn(c_choice, h_choice)
             robotMove = env.ai_turn(c_choice, h_choice)
-            self.drawMove(robotMove, True)
+            if robotMove is not None:
+                self.drawMove(robotMove, True)
 
         if env.wins(env.board, env.HUMAN):
             env.render(env.board, c_choice, h_choice)
@@ -104,15 +105,15 @@ class TicTacToe:
         startPose = line[0]
         endPose = line[1]
         # move to startPose with elevated z
-        startPose.z += 0.01
+        startPose.z += 0.025
         self.move_to_point(startPose)
         # move to startPose
-        startPose.z -= 0.01
+        startPose.z -= 0.025
         self.move_to_point(startPose)
         # path line to endPose
         self.move_to_point(endPose)
         # move to endPose with elevated z
-        endPose.z += 0.01
+        endPose.z += 0.025
         self.move_to_point(endPose)
     def getBoardLines(self):
         left = []
@@ -148,14 +149,15 @@ class TicTacToe:
         # draw a circle of size self.shape_size
         centerPoint.z += 0.01
         self.move_to_point(centerPoint)
-        steps = np.linspace(0, pi/8, pi*2 )
+        steps = np.linspace(0, pi/16, pi*2 )
         print(steps)
         waypoints = []
-        waypoints.append(copy.deepcopy(self.robot.right_manipulator.get_current_pose().pose))
-        centerPoint.z -= 0.01
+        # waypoints.append(copy.deepcopy(self.robot.right_manipulator.get_current_pose().pose))
+        centerPoint.z -= 0.023
         for ang in steps:
-            point = Point(centerPoint.x + sin(ang)*self.shape_size/2, centerPoint.y - cos(ang)*self.shape_size/2, centerPoint.z)
+            point = Point(centerPoint.x + sin(ang)*self.shape_size, centerPoint.y - cos(ang)*self.shape_size, centerPoint.z)
             waypoints.append(Pose(position=point, orientation=self.board_pos.orientation))
+        self.move_to_point(Point(centerPoint.x, centerPoint.y-self.shape_size, centerPoint.z))
         self.follow_path(waypoints)
         pass
     def drawX(self, centerPose):
